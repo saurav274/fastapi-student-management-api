@@ -83,8 +83,8 @@ GET /students?page=1&limit=10&sort_by=age&sort_order=asc
 Clone the repository:
 
 ```bash
-git clone <repository-url>
-cd <repository-name>
+git clone https://github.com/saurav274/fastapi-student-management-api.git
+cd fastapi-student-management-api
 ```
 
 Create a virtual environment:
