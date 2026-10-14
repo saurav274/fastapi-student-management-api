@@ -1,6 +1,8 @@
 from schemas import StudentCreate, StudentResponse, StudentUpdate
 from models import Student, Course
 from database import get_db
+from auth import verify_api_key
+from auth import authenticate_user
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -9,7 +11,11 @@ from typing import Literal
 router = APIRouter(prefix= "/students")
 
 @router.post("", status_code = 201)
-def create_students(student: StudentCreate, db: Session = Depends(get_db)):
+def create_students(
+    student: StudentCreate,
+    current_user = Depends(authenticate_user),
+    db: Session = Depends(get_db)
+):
     db_student = Student(
         name = student.name,
         age = student.age,
@@ -32,6 +38,7 @@ def create_students(student: StudentCreate, db: Session = Depends(get_db)):
 @router.get("/{student_id}",response_model = StudentResponse)
 def get_student(
     student_id: int,
+    current_user = Depends(authenticate_user),
     db: Session = Depends(get_db)):
 
     student = db.query(Student).filter(Student.id == student_id).first()
@@ -46,12 +53,14 @@ def get_student(
 
 @router.get("", response_model= list[StudentResponse])
 def get_students(
+    current_user = Depends(authenticate_user),
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1),
     course_id: int | None = None ,
     sort_by: str | None = None,
     sort_order: Literal["asc", "desc"] = "desc",
-    db: Session = Depends(get_db)):
+    db: Session = Depends(get_db)
+):
 
     sorting = {
         "age": Student.age,
@@ -88,6 +97,7 @@ def get_students(
 def update_student(
     student_id: int,
     student_data: StudentCreate,
+    current_user = Depends(authenticate_user),
     db: Session = Depends(get_db)
 ):
         
@@ -99,10 +109,6 @@ def update_student(
             detail = "Student not found"
         )
 
-    student.name = student_data.name
-    student.age = student_data.age
-    student.course_id = student_data.course_id
-
     course = db.query(Course).filter(Course.id == student_data.course_id).first()
 
     if course is None:
@@ -110,6 +116,11 @@ def update_student(
             status_code=404,
             detail="Invalid course id"
         )
+
+    student.name = student_data.name
+    student.age = student_data.age
+    student.course_id = student_data.course_id
+
     
     db.commit()
     db.refresh(student)
@@ -119,6 +130,7 @@ def update_student(
 def partially_update_student(
     student_id: int,
     partially_update_data: StudentUpdate,
+    current_user = Depends(authenticate_user),
     db: Session = Depends(get_db)
 ):
     student = db.query(Student).filter(Student.id == student_id).first()
@@ -149,7 +161,8 @@ def partially_update_student(
 @router.delete("/{student_id}")
 def delete_student(
     student_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user = Depends(authenticate_user)
 ):
     student = db.query(Student).filter(Student.id == student_id).first()
 
@@ -162,4 +175,3 @@ def delete_student(
     db.delete(student)
     db.commit()
     return {"message": "Student removed successfully !"}
-# students.py

@@ -10,6 +10,10 @@ class StudentUpdate(BaseModel):
     age: int | None = None
     course_id: int | None = None
 
+class CreateUser(BaseModel):
+    username: str = Field(min_length=3, max_length=30)
+    password: str = Field(min_length=8, max_length=128)
+
 class CreateCourse(BaseModel):
     name: str = Field(min_length=2, max_length=45)
 
@@ -25,6 +29,12 @@ class StudentResponse(BaseModel):
     age: int
     course_id: int
     course: CourseResponse
+
+    model_config = {"from_attributes": True}
+
+class UserResponse(BaseModel):
+    id: int
+    username: str
 
     model_config = {"from_attributes": True}
 

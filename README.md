@@ -1,9 +1,13 @@
 # FastAPI Student Management API
 
-A REST API built with FastAPI for managing students and courses. This project was built as a learning project to practice backend development with FastAPI, Pydantic, SQLAlchemy, and SQLite.
+A REST API built with FastAPI for managing students and courses, secured with JWT authentication and password hashing. This project was built as a learning project to practice backend development with FastAPI, Pydantic, SQLAlchemy, and SQLite.
 
 ## Features
 
+- User registration and login with JWT access tokens (30-minute expiry)
+- Password hashing with Argon2 (via `pwdlib`); plain passwords are never stored
+- All student and course endpoints require authentication
+- Alternative API key authentication through the `X-API-KEY` header
 - Create and retrieve courses
 - Create, retrieve, update, partially update, and delete students
 - Validate request data using Pydantic
@@ -11,10 +15,9 @@ A REST API built with FastAPI for managing students and courses. This project wa
 - Validate course IDs before assigning them to students
 - Pagination for student records
 - Filter students by course
-- Sort students by ID, name, or age
-- Support ascending and descending sorting
+- Sort students by ID, name, or age in ascending or descending order
 - HTTP error handling for missing students and courses
-- Separate routers for students and courses
+- Separate routers for students, courses, and users
 
 ## Tech Stack
 
@@ -23,6 +26,9 @@ A REST API built with FastAPI for managing students and courses. This project wa
 - Pydantic
 - SQLAlchemy
 - SQLite
+- PyJWT
+- pwdlib (Argon2)
+- python-dotenv
 - Uvicorn
 
 ## Project Structure
@@ -32,19 +38,69 @@ A REST API built with FastAPI for managing students and courses. This project wa
 ├── routers/
 │   ├── __init__.py
 │   ├── courses.py
-│   └── students.py
+│   ├── students.py
+│   └── users.py
+├── auth.py
 ├── database.py
 ├── main.py
 ├── models.py
 ├── schemas.py
 ├── requirements.txt
+├── .env.example
 ├── .gitignore
 └── README.md
 ```
 
+## Authentication
+
+The API supports two ways to authenticate. Send either one with each request to a protected endpoint.
+
+**1. JWT (for users)**
+
+1. Register an account with `POST /user/register`.
+2. Log in with `POST /user/login` (form fields: `username` and `password`). The response contains an access token.
+3. Send the token in the `Authorization` header: `Authorization: Bearer <token>`.
+
+Tokens expire after 30 minutes, after which you need to log in again.
+
+**2. API key**
+
+Send the key from your `.env` file in the `X-API-KEY` header.
+
+**Using Swagger UI:** open `/docs`, click **Authorize**, enter your username and password, and all requests from the page will include your token.
+
+Example with curl:
+
+```bash
+# Register
+curl -X POST http://127.0.0.1:8000/user/register \
+  -H "Content-Type: application/json" \
+  -d '{"username": "saurav", "password": "strongpassword123"}'
+
+# Log in
+curl -X POST http://127.0.0.1:8000/user/login \
+  -d "username=saurav&password=strongpassword123"
+
+# Call a protected endpoint
+curl http://127.0.0.1:8000/students \
+  -H "Authorization: Bearer <your_token>"
+```
+
+> **Note:** Authentication is implemented, but role-based authorization is not. Any authenticated user can modify any record.
+
 ## API Endpoints
 
+### Users
+
+| Method | Endpoint | Auth required | Description |
+|--------|----------|---------------|-------------|
+| POST | /user/register | No | Register a new user |
+| POST | /user/login | No | Log in and receive a JWT access token |
+| GET | /user/me | JWT | Get the current logged-in user |
+
 ### Students
+
+All student endpoints require authentication (JWT or API key).
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -56,6 +112,8 @@ A REST API built with FastAPI for managing students and courses. This project wa
 | DELETE | /students/{student_id} | Delete a student |
 
 ### Courses
+
+All course endpoints require authentication (JWT or API key).
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -105,6 +163,25 @@ Install the dependencies:
 pip install -r requirements.txt
 ```
 
+Create your environment file by copying the example:
+
+```bash
+copy .env.example .env
+```
+
+Then open `.env` and set your own values:
+
+```env
+SECRET_KEY=your-generated-secret
+API_KEY=your-api-key
+```
+
+Generate a secure secret key with:
+
+```bash
+python -c "import secrets; print(secrets.token_hex(32))"
+```
+
 Run the application:
 
 ```bash
@@ -122,7 +199,7 @@ FastAPI automatically provides interactive API documentation:
 
 ## Database
 
-The project currently uses SQLite for simplicity. Database tables are created from the SQLAlchemy models when the application starts.
+The project currently uses SQLite for simplicity. Tables for students, courses, and users are created from the SQLAlchemy models when the application starts. The users table stores only hashed passwords.
 
 ## Purpose
 
@@ -135,14 +212,16 @@ This project was built to practice:
 - CRUD operations
 - Pagination and query parameters
 - API error handling
+- JWT authentication and password hashing
+- Protecting routes with dependencies
+- Managing secrets with environment variables
 
 ## Future Improvements
 
 Planned improvements include:
 
-- Authentication and authorization
-- Password hashing
-- Improved validation for partial updates
+- Role-based authorization
+- Automated tests with pytest
 - Database migrations with Alembic
 - Deployment
 - Additional API functionality
